@@ -36,10 +36,10 @@ Horarios actuales: 35 opciones cada media hora, de 06:00 a 23:00 inclusive. La d
 
 1. Crear y verificar el remitente en Brevo y habilitar correo transaccional.
 2. En Cloudflare Workers, desplegar `backend/worker.mjs` con `backend/wrangler.jsonc` (por ejemplo, desde backend con `npx wrangler deploy`).
-3. Configurar como secretos `BREVO_API_KEY`, `SENDER_EMAIL`, `HOST_EMAIL`, `INVITEE_EMAIL` (con `npx wrangler secret put NOMBRE`). No pegar secretos en los archivos ni en el chat. Para la primera prueba, HOST_EMAIL e INVITEE_EMAIL pueden ser tu propio correo; se deduplican.
+3. Configurar como secretos `BREVO_API_KEY`, `SENDER_EMAIL`, `HOST_EMAIL` (con `npx wrangler secret put NOMBRE`). No pegar secretos en los archivos ni en el chat. Para la primera prueba, escribe tu propio correo en el formulario o déjalo vacío; los destinatarios se deduplican.
 4. Configurar ALLOWED_ORIGIN como `https://gerchay.github.io`; para probar desde el servidor local, usar `http://localhost:5511`. Es un origen, sin ruta ni slash final.
 5. Poner la URL `https://TU-WORKER.workers.dev/invite` en CONFIG.emailEndpoint.
 
-Se validan también en el servidor plan, fechas bloqueadas, horas pasadas y los intervalos. El destinatario invitado debe coincidir con INVITEE_EMAIL; tu copia usa HOST_EMAIL y no puede modificarse desde el navegador. Antes del despliegue real, configurar limitación de solicitudes en Cloudflare para evitar envíos repetidos. CORS no sustituye esa protección. No hay almacenamiento ni deduplicación persistente: ante errores de conexión revisar el correo antes de repetir. Brevo mantiene sus propios registros de envío.
+Se validan también en el servidor plan, fechas bloqueadas, horas pasadas y los intervalos. El correo de la invitada es opcional: vacío envía solo a HOST_EMAIL; informado envía a ella y copia oculta a HOST_EMAIL. INVITEE_EMAIL ya no se usa. Antes del despliegue real, configurar limitación de solicitudes en Cloudflare para evitar envíos repetidos. CORS no sustituye esa protección. No hay almacenamiento ni deduplicación persistente: ante errores de conexión revisar el correo antes de repetir. Brevo mantiene sus propios registros de envío.
 
 Pruebas del Worker con Node 24 (Brevo simulado, no envían correos): `node --test backend/worker.test.mjs`.

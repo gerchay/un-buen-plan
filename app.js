@@ -4,7 +4,7 @@ const CONFIG = {
   year: 2026, month: 11, timeZone: 'America/Guatemala',
   blockedDays: [12, 13, 18, 19, 27, 28, 29],
   times: Array.from({length: 35}, (_, i) => {const minutes=360+i*30;return `${String(Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;}),
-  emailEndpoint: '', // Vacío = simulación. Luego: https://TU-WORKER.workers.dev/invite
+  emailEndpoint: 'https://un-buen-plan-email.gerchay.workers.dev/invite',
   plans: [
     { id: 'boliche', name: 'Boliche', detail: 'El que pierde invita la cena.', icon: '🎳' },
     { id: 'cena', name: 'Vamos a cenar', detail: 'Buena comida y plática sin prisa.', icon: '🍽️' },
@@ -56,7 +56,7 @@ $('#time').onchange=e=>{state.time=e.target.value;update();};
 function update(){const valid=state.plan&&available(state.date)&&validTime();$('#confirm').disabled=!valid;$('#selection').textContent=state.plan?`${state.plan.icon} ${state.plan.name}${state.date?' · '+dateLabel(state.date):''}${state.time?' · '+timeLabel(state.time):''}`:'Elige día y hora para completar el plan.';$('#error').textContent='';}
 let submitting = false;
 $('#email-fields').hidden = !CONFIG.emailEndpoint;
-$('#delivery-note').textContent = CONFIG.emailEndpoint ? 'Te enviaremos el resumen por correo.' : 'Simulación: la selección está en memoria. No se envían correos y se borra al recargar.';
+$('#delivery-note').textContent = CONFIG.emailEndpoint ? 'Si agregas tu correo, recibirás una copia del plan.' : 'Simulación: la selección está en memoria. No se envían correos y se borra al recargar.';
 $('#confirm').onclick=async()=>{
   if(submitting)return;
   if(!state.plan||!available(state.date)||!validTime()){$('#error').textContent='Revisa la fecha y el horario; esa opción ya no está disponible.';renderCalendar();renderTimes();return;}
@@ -76,16 +76,14 @@ $('#confirm').onclick=async()=>{
       const response=await fetch(CONFIG.emailEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(draft),signal:AbortSignal.timeout(20000)});
       const result=await response.json();
       if(!response.ok||result.accepted!==true)throw new Error(result.error||'No se pudo confirmar el envío.');
-      $('#delivery-note').textContent='El servicio aceptó el envío a ambos correos. Revisa también la carpeta de spam.';
+      $('#delivery-note').textContent=draft.email?'El servicio aceptó el envío. Revisa tu correo y la carpeta de spam.':'¡Listo! Tu elección fue enviada.';
     }
     $('#summary').replaceChildren();
     const label=document.createElement('small');label.textContent='NUESTRO PLAN';
     const name=document.createElement('strong');name.textContent=`${state.plan.icon} ${state.plan.name}`;
     const when=document.createElement('div');when.textContent=`${dateLabel(state.date)} · ${timeLabel(state.time)}`;
     $('#summary').append(label,name,when);
-    $('#payload').textContent=JSON.stringify(draft,null,2);
     go(4);
   }catch(error){$('#error').textContent=error.name==='TimeoutError'||error instanceof TypeError?'No pudimos confirmar el envío. Revisa tu correo antes de volver a intentarlo.':error.message;}
   finally{controls.forEach((el,i)=>el.disabled=priorDisabled[i]);submitting=false;$('#confirm').textContent='Confirmar plan ↗';}
 };
-$('#inspect').onclick=()=>$('#preview').showModal();$('#close-preview').onclick=()=>$('#preview').close();

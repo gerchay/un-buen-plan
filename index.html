@@ -71,14 +71,13 @@
             </select>
             <p class="tiny">De 6:00 a. m. a 11:00 p. m., cada media hora.</p>
             <div id="email-fields" hidden>
-              <label for="email">Tu correo para recibir el plan</label
+              <label for="email">Tu correo para recibir el plan (opcional)</label
               ><input
                 id="email"
                 type="email"
                 autocomplete="email"
                 inputmode="email"
                 maxlength="254"
-                required
                 placeholder="tu@correo.com"
               />
             </div>
@@ -95,15 +94,8 @@
           </section>
           <section data-step="4" hidden>
             <div class="success-mark">✓</div>
-            <div class="mini-label">YA TENEMOS LOS INGREDIENTES</div>
             <h2>¡Listo, tenemos plan! 🙌</h2>
-            <p>Así quedaría nuestra salida.</p>
             <div id="summary" class="summary"></div>
-            <button class="primary full" id="inspect">
-              Ver datos de prueba <span>↗</span></button
-            ><button class="back full" data-back="3">
-              Cambiar fecha u horario
-            </button>
             <p class="tiny" id="delivery-note">
               Simulación: la selección está en memoria. No se ha enviado ningún
               correo y se borra al recargar.
@@ -112,16 +104,5 @@
         </section>
       </div>
     </main>
-    <dialog id="preview">
-      <form method="dialog">
-        <button class="close" aria-label="Cerrar">×</button>
-      </form>
-      <div class="mini-label">SIMULACIÓN DEL ENVÍO</div>
-      <h2>Todo en un objeto.</h2>
-      <p>Estos son los datos de tu selección.</p>
-      <pre id="payload"></pre>
-      <p class="tiny">El objeto se mantiene en memoria durante esta visita.</p>
-      <button class="primary" id="close-preview">Entendido ✓</button>
-    </dialog>
   </body>
 </html>
