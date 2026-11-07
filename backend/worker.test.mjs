@@ -13,9 +13,9 @@ test('fechas y horarios válidos; bloqueos y extremos',()=>{
 });
 const env={ALLOWED_ORIGIN:'https://gerchay.github.io',BREVO_API_KEY:'test-only',SENDER_EMAIL:'sender@example.com',HOST_EMAIL:'host@example.com',INVITEE_EMAIL:'guest@example.com'};
 const request=(data=draft,origin=env.ALLOWED_ORIGIN)=>new Request('https://example.com/invite',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(data)});
-test('rechaza origen no autorizado y correo arbitrario',async()=>{
+test('rechaza origen no autorizado y correo inválido',async()=>{
   assert.equal((await worker.fetch(request(draft,'https://other.example'),env)).status,403);
-  assert.equal((await worker.fetch(request({...draft,email:'other@example.com'}),env)).status,400);
+  assert.equal((await worker.fetch(request({...draft,email:'correo-invalido'}),env)).status,400);
 });
 test('envío a invitada y copia fija; fallo no se presenta como éxito',async()=>{
   const original=globalThis.fetch;
@@ -24,5 +24,16 @@ test('envío a invitada y copia fija; fallo no se presenta como éxito',async()=
     const response=await worker.fetch(request(),env);assert.equal(response.status,200);assert.deepEqual(await response.json(),{accepted:true});
     globalThis.fetch=async()=>Response.json({error:'test'},{status:500});
     assert.equal((await worker.fetch(request(),env)).status,502);
+  }finally{globalThis.fetch=original;}
+});
+
+test('correo opcional, nuevo destinatario y deduplicación',async()=>{
+  const original=globalThis.fetch;
+  try {
+    for (const [email,expected] of [[undefined,['host@example.com']],['',['host@example.com']],[' HOST@example.com ',['host@example.com']],['new@example.com',['new@example.com','host@example.com']]]) {
+      globalThis.fetch=async(url,options)=>{const body=JSON.parse(options.body);assert.deepEqual([...body.to,...(body.bcc||[])].map(x=>x.email),expected);return Response.json({messageId:'test-id'},{status:201});};
+      const withoutInvitee={...env};delete withoutInvitee.INVITEE_EMAIL;
+      assert.equal((await worker.fetch(request({...draft,email}),withoutInvitee)).status,200);
+    }
   }finally{globalThis.fetch=original;}
 });

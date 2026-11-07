@@ -1,3 +1,4 @@
+import { renderEmail } from './email.mjs';
 // Cloudflare Worker. Los secretos se configuran en Cloudflare, nunca en GitHub Pages.
 const PLANS = {boliche:'Boliche',cena:'Vamos a cenar',zapote:'Finca El Zapote',carmona:'Finca Carmona',cafe:'Café y algo dulce'};
 const BLOCKED = [12,13,18,19,27,28,29];
@@ -18,8 +19,8 @@ export default {
     if (new URL(request.url).pathname !== '/invite') return reply(404,{error:'Ruta no encontrada.'});
     if (request.method === 'OPTIONS') return new Response(null,{status:204,headers});
     if (request.method !== 'POST') return reply(405,{error:'Método no permitido.'});
-    // Destinatarios fijos: este formulario no permite enviar a correos arbitrarios.
-    if (!['BREVO_API_KEY','SENDER_EMAIL','HOST_EMAIL','INVITEE_EMAIL'].every(key=>env[key])) return reply(503,{error:'El envío todavía no está configurado.'});
+    // Tu copia siempre usa HOST_EMAIL; el correo de la invitada es opcional.
+    if (!['BREVO_API_KEY','SENDER_EMAIL','HOST_EMAIL'].every(key=>env[key])) return reply(503,{error:'El envío todavía no está configurado.'});
     if (!request.headers.get('Content-Type')?.startsWith('application/json')) return reply(415,{error:'Se requiere JSON.'});
     let data;
     try {
@@ -29,13 +30,13 @@ export default {
     } catch { return reply(400,{error:'Datos inválidos.'}); }
     if (!validate(data)) return reply(400,{error:'Revisa el plan, la fecha y el horario.'});
     const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : '';
-    if (email !== env.INVITEE_EMAIL.trim().toLowerCase()) return reply(400,{error:'Revisa el correo de la invitación.'});
-    const recipients = [...new Set([env.INVITEE_EMAIL,env.HOST_EMAIL].map(x=>x.trim().toLowerCase()))];
-    const textContent = `¡Tenemos plan!\n\n${PLANS[data.plan.id]}\nFecha: ${data.date}\nHora: ${data.time} (Guatemala)\n${data.plan.id==='boliche'?'El que pierde invita la cena.\n':''}\n¡Nos vemos!`;
+    if ((data.email != null && typeof data.email !== 'string') || email.length > 254 || (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email))) return reply(400,{error:'Revisa el correo o deja el campo vacío.'});
+    const recipients = [...new Set([email,env.HOST_EMAIL.trim().toLowerCase()].filter(Boolean))];
+    const { textContent, htmlContent } = renderEmail({plan:PLANS[data.plan.id],date:data.date,time:data.time,bowling:data.plan.id==='boliche'});
     try {
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method:'POST',headers:{'api-key':env.BREVO_API_KEY,'Content-Type':'application/json','Accept':'application/json'},
-        body:JSON.stringify({sender:{email:env.SENDER_EMAIL,name:env.SENDER_NAME||'Tenemos plan'},to:[{email:recipients[0]}],...(recipients.length>1?{bcc:[{email:recipients[1]}]}:{}),subject:'¡Tenemos plan! 🙌',textContent}),
+        body:JSON.stringify({sender:{email:env.SENDER_EMAIL,name:env.SENDER_NAME||'Tenemos plan'},to:[{email:recipients[0]}],...(recipients.length>1?{bcc:[{email:recipients[1]}]}:{}),subject:'¡Tenemos plan! 🙌',textContent,htmlContent,replyTo:{email:env.HOST_EMAIL}}),
         signal:AbortSignal.timeout(15000)
       });
       if (!response.ok) return reply(502,{error:'No pudimos confirmar el envío. Revisa tu correo antes de volver a intentarlo.'});
