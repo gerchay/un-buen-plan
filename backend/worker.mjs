@@ -1,12 +1,13 @@
 import { renderEmail } from './email.mjs';
 // Cloudflare Worker. Los secretos se configuran en Cloudflare, nunca en GitHub Pages.
 const PLANS = {boliche:'Boliche',cena:'Vamos a cenar',zapote:'Finca El Zapote',carmona:'Finca Carmona',cafe:'Café y algo dulce'};
-const BLOCKED = [12,13,18,19,27,28,29];
+const BLOCKED = ["2026-11-12", "2026-11-13", "2026-11-18", "2026-11-19", "2026-11-27", "2026-11-28", "2026-11-29", "2026-12-05", "2026-12-11", "2026-12-12", "2026-12-13", "2026-12-24", "2026-12-25", "2026-12-31", "2027-01-01"];
 export function validate(data, now = new Date()) {
   const date = data?.date, time = data?.time;
-  if (!PLANS[data?.plan?.id] || typeof date !== 'string' || !/^2026-11-\d{2}$/.test(date)) return false;
-  const day = Number(date.slice(8));
-  if (day < 1 || day > 30 || BLOCKED.includes(day) || typeof time !== 'string' || !/^(?:0[6-9]|1\d|2[0-2]):(?:00|30)$|^23:00$/.test(time)) return false;
+  if (!PLANS[data?.plan?.id] || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date < '2026-11-01' || date > '2027-01-31') return false;
+  const parsed = new Date(`${date}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0,10) !== date) return false;
+  if (BLOCKED.includes(date) || typeof time !== 'string' || !/^(?:0[6-9]|1\d|2[0-2]):(?:00|30)$|^23:00$/.test(time)) return false;
   return new Date(`${date}T${time}:00-06:00`) > now;
 }
 export default {

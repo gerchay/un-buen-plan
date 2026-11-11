@@ -7,7 +7,7 @@ test('fechas y horarios válidos; bloqueos y extremos',()=>{
   for(const time of ['06:00','06:30','22:30','23:00'])assert.ok(validate({...draft,time},now));
   for(const time of ['05:30','23:30','12:15'])assert.equal(validate({...draft,time},now),false);
   for(const day of [12,13,18,19,27,28,29,31])assert.equal(validate({...draft,date:`2026-11-${day}`},now),false);
-  assert.equal(validate({...draft,date:'2026-12-14'},now),false);
+  assert.equal(validate({...draft,date:'2026-12-14'},now),true);
   assert.equal(validate({...draft,date:'2026-11-06'},now),false);
   assert.equal(validate({...draft,plan:{id:'inventado'}},now),false);
 });
@@ -37,4 +37,9 @@ test('correo obligatorio, nuevo destinatario y deduplicación',async()=>{
       assert.equal((await worker.fetch(request({...draft,email}),withoutInvitee)).status,200);
     }
   }finally{globalThis.fetch=original;}
+});
+
+test('diciembre y enero: límites, fiestas y días reales',()=>{
+  for(const date of ['2026-12-01','2026-12-14','2026-12-30','2027-01-02','2027-01-31'])assert.ok(validate({...draft,date},now),date);
+  for(const date of ['2026-12-05','2026-12-11','2026-12-12','2026-12-13','2026-12-24','2026-12-25','2026-12-31','2027-01-01','2027-02-01','2026-11-31','2027-01-32'])assert.equal(validate({...draft,date},now),false,date);
 });

@@ -1,8 +1,8 @@
 'use strict';
 // Edita aquí las opciones de la invitación. Horarios provisionales para revisar el flujo.
 const CONFIG = {
-  year: 2026, month: 11, timeZone: 'America/Guatemala',
-  blockedDays: [12, 13, 18, 19, 27, 28, 29],
+  months: ['2026-11','2026-12','2027-01'], timeZone: 'America/Guatemala',
+  blockedDates: ["2026-11-12", "2026-11-13", "2026-11-18", "2026-11-19", "2026-11-27", "2026-11-28", "2026-11-29", "2026-12-05", "2026-12-11", "2026-12-12", "2026-12-13", "2026-12-24", "2026-12-25", "2026-12-31", "2027-01-01"],
   times: Array.from({length: 35}, (_, i) => {const minutes=360+i*30;return `${String(Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;}),
   simulateEmail: false, // Producción: envío real después de confirmar.
   emailEndpoint: 'https://un-buen-plan-email.gerchay.workers.dev/invite',
@@ -17,9 +17,13 @@ const CONFIG = {
 const state = {plan: null, date: '', time: ''};
 const $ = (selector) => document.querySelector(selector);
 function localNow(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date());const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return {date:`${p.year}-${p.month}-${p.day}`,time:`${p.hour}:${p.minute}`};}
-function available(date){const today=localNow().date; const day=Number(date.slice(8));return /^2026-11-\d{2}$/.test(date)&&day>=1&&day<=30&&date>=today&&!CONFIG.blockedDays.includes(day);}
+function available(date){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date<'2026-11-01'||date>'2027-01-31')return false;
+  const parsed=new Date(`${date}T12:00:00Z`);
+  return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===date&&date>=localNow().date&&!CONFIG.blockedDates.includes(date);
+}
 function validTime(){const now=localNow();return CONFIG.times.includes(state.time)&&(state.date!==now.date||state.time>now.time);}
-function dateLabel(date){return new Intl.DateTimeFormat('es-GT',{weekday:'long',day:'numeric',month:'long',timeZone:CONFIG.timeZone}).format(new Date(`${date}T12:00:00-06:00`));}
+function dateLabel(date){return new Intl.DateTimeFormat('es-GT',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:CONFIG.timeZone}).format(new Date(`${date}T12:00:00-06:00`));}
 function timeLabel(time){const [h,m]=time.split(':').map(Number);return `${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'p. m.':'a. m.'}`;}
 function go(step){document.querySelectorAll('[data-step]').forEach(el=>el.hidden=Number(el.dataset.step)!==step);document.querySelectorAll('.progress span').forEach((el,i)=>el.classList.toggle('active',i===Math.min(step,3)-1));const heading=$(`[data-step="${step}"] h2`);heading.tabIndex=-1;heading.focus({preventScroll:true});if(innerWidth<=620)$('.card').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});}
 $('#yes').onclick=()=>go(2);
@@ -50,7 +54,24 @@ $('#no').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')dodge(e)
 window.addEventListener('resize',()=>{if(!document.querySelector('[data-step="1"]').hidden)dodge();});
 document.querySelectorAll('[data-back]').forEach(button=>button.onclick=()=>go(Number(button.dataset.back)));
 CONFIG.plans.forEach(plan=>{const button=document.createElement('button');button.className='plan';button.setAttribute('aria-pressed','false');button.innerHTML=`<span class="plan-icon" aria-hidden="true">${plan.icon}</span><span><strong>${plan.name}</strong><small>${plan.detail}</small></span><span class="radio" aria-hidden="true"></span>`;button.onclick=()=>{state.plan=plan;document.querySelectorAll('.plan').forEach(el=>el.setAttribute('aria-pressed',String(el===button)));$('#to-date').disabled=false;update();};$('#plans').append(button);});
-function renderCalendar(){const calendar=$('#calendar');calendar.replaceChildren();for(let i=0;i<6;i++)calendar.append(document.createElement('span'));for(let day=1;day<=30;day++){const date=`2026-11-${String(day).padStart(2,'0')}`;const button=document.createElement('button');button.textContent=day;button.disabled=!available(date);button.setAttribute('aria-label',dateLabel(date)+(button.disabled?' — no disponible':''));button.setAttribute('aria-pressed',String(state.date===date));button.onclick=()=>{state.date=date;renderCalendar();renderTimes();update();};calendar.append(button);}}
+function renderCalendar(){
+  const calendar=$('#calendar');calendar.replaceChildren();
+  const month=$('#calendar-month').value;
+  const [year,number]=month.split('-').map(Number);
+  const offset=(new Date(Date.UTC(year,number-1,1)).getUTCDay()+6)%7;
+  const days=new Date(Date.UTC(year,number,0)).getUTCDate();
+  calendar.setAttribute('aria-label',`Fechas disponibles de ${$('#calendar-month').selectedOptions[0].textContent}`);
+  for(let i=0;i<offset;i++)calendar.append(document.createElement('span'));
+  for(let day=1;day<=days;day++){
+    const date=`${month}-${String(day).padStart(2,'0')}`;
+    const button=document.createElement('button');button.textContent=day;
+    button.disabled=!available(date);button.setAttribute('aria-label',dateLabel(date)+(button.disabled?' — no disponible':''));
+    button.setAttribute('aria-pressed',String(state.date===date));
+    button.onclick=()=>{state.date=date;renderCalendar();renderTimes();update();};calendar.append(button);
+  }
+}
+$('#calendar-month').value=CONFIG.months.includes(localNow().date.slice(0,7))?localNow().date.slice(0,7):CONFIG.months[0];
+$('#calendar-month').onchange=()=>{state.date='';renderCalendar();renderTimes();update();};
 function renderTimes(){const select=$('#time');select.replaceChildren(new Option('Selecciona un horario',''));const now=localNow();CONFIG.times.forEach(time=>{const option=new Option(timeLabel(time),time);option.disabled=state.date===now.date&&time<=now.time;select.add(option);});if(!validTime())state.time='';select.value=state.time;}
 $('#to-date').onclick=()=>{renderCalendar();renderTimes();go(3);};
 $('#time').onchange=e=>{state.time=e.target.value;update();};

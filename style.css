@@ -27,3 +27,5 @@ dialog{max-height:85dvh;overflow-y:auto;}input:focus-visible{outline:3px solid v
 @media(max-width:380px){.shell{padding:24px 12px;}.card{padding:22px 14px 0;}.progress{gap:5px;font-size:9px;}.progress span{gap:4px;}.plan{gap:10px;padding:11px;}.answer-zone #no{top:76px;}.actions{gap:8px;}dialog{padding:22px 18px;}}
 
 #review-email,#delivery-note{overflow-wrap:anywhere;}#review-email{color:var(--green);font-size:17px;} .review-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px;} .review-actions button{flex:1;min-width:180px;min-height:48px;} #test-notice,#review-test{background:var(--sage);border-radius:8px;padding:10px 12px;}
+
+.calendar-head{gap:12px;}.calendar-head label{margin:0;}.calendar-head select{flex:1;min-width:0;}
