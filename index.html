@@ -71,16 +71,20 @@
             </select>
             <p class="tiny">De 6:00 a. m. a 11:00 p. m., cada media hora.</p>
             <div id="email-fields" hidden>
-              <label for="email">Tu correo para recibir el plan (opcional)</label
+              <label for="email">¿A qué correo te envío el plan?</label
               ><input
                 id="email"
                 type="email"
                 autocomplete="email"
                 inputmode="email"
                 maxlength="254"
-                placeholder="tu@correo.com"
+                required
+                aria-describedby="email-hint"
+                placeholder="nombre@correo.com"
               />
             </div>
+            <p class="tiny" id="email-hint">Te llegará una copia con todos los detalles.</p>
+            <p class="tiny" id="test-notice" hidden>Modo de prueba local: no se enviarán correos.</p>
             <div id="selection" class="selection" aria-live="polite">
               Elige día y hora para completar el plan.
             </div>
@@ -88,7 +92,7 @@
             <div class="actions">
               <button class="back" data-back="2">← Cambiar plan</button
               ><button class="primary" id="confirm" disabled>
-                Confirmar plan ↗
+                Revisar mi plan ↗
               </button>
             </div>
           </section>
@@ -104,5 +108,14 @@
         </section>
       </div>
     </main>
+    <dialog id="review-dialog" aria-labelledby="review-title" aria-describedby="review-description">
+      <h2 id="review-title">¿Así dejamos el plan? 🙌</h2>
+      <div class="summary"><strong id="review-plan"></strong><div id="review-when"></div></div>
+      <p id="review-description">Enviaremos tu copia a:<br><strong id="review-email"></strong></p>
+      <p class="tiny">Revisa que esté bien escrito.</p>
+      <p class="tiny" id="review-test" hidden>Modo de prueba local: este botón simula el envío.</p>
+      <p class="error" id="review-error" role="alert"></p>
+      <div class="review-actions"><button class="secondary" id="review-edit" autofocus>Volver y corregir</button><button class="primary" id="review-send">Sí, confirmar y enviar</button></div>
+    </dialog>
   </body>
 </html>

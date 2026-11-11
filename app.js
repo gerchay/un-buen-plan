@@ -4,6 +4,7 @@ const CONFIG = {
   year: 2026, month: 11, timeZone: 'America/Guatemala',
   blockedDays: [12, 13, 18, 19, 27, 28, 29],
   times: Array.from({length: 35}, (_, i) => {const minutes=360+i*30;return `${String(Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;}),
+  simulateEmail: false, // Producción: envío real después de confirmar.
   emailEndpoint: 'https://un-buen-plan-email.gerchay.workers.dev/invite',
   plans: [
     { id: 'boliche', name: 'Boliche', detail: 'El que pierde invita la cena.', icon: '🎳' },
@@ -55,35 +56,56 @@ $('#to-date').onclick=()=>{renderCalendar();renderTimes();go(3);};
 $('#time').onchange=e=>{state.time=e.target.value;update();};
 function update(){const valid=state.plan&&available(state.date)&&validTime();$('#confirm').disabled=!valid;$('#selection').textContent=state.plan?`${state.plan.icon} ${state.plan.name}${state.date?' · '+dateLabel(state.date):''}${state.time?' · '+timeLabel(state.time):''}`:'Elige día y hora para completar el plan.';$('#error').textContent='';}
 let submitting = false;
-$('#email-fields').hidden = !CONFIG.emailEndpoint;
-$('#delivery-note').textContent = CONFIG.emailEndpoint ? 'Si agregas tu correo, recibirás una copia del plan.' : 'Simulación: la selección está en memoria. No se envían correos y se borra al recargar.';
-$('#confirm').onclick=async()=>{
-  if(submitting)return;
-  if(!state.plan||!available(state.date)||!validTime()){$('#error').textContent='Revisa la fecha y el horario; esa opción ya no está disponible.';renderCalendar();renderTimes();return;}
-  const emailInput = $('#email');
-  if(CONFIG.emailEndpoint && !emailInput.reportValidity())return;
-  const draft={mode:CONFIG.emailEndpoint?'email':'simulation',plan:{id:state.plan.id,name:state.plan.name,detail:state.plan.detail},date:state.date,time:state.time,timeZone:CONFIG.timeZone,createdAt:new Date().toISOString()};
-  if(CONFIG.emailEndpoint)draft.email=emailInput.value.trim();
-  window.invitationDraft=draft;
+let reviewedDraft = null;
+const simulated = CONFIG.simulateEmail || !CONFIG.emailEndpoint;
+const review = $('#review-dialog');
+$('#email-fields').hidden = false;
+$('#test-notice').hidden = !simulated;
+function validateSelection(){
+  if(!state.plan||!available(state.date)||!validTime()){
+    $('#error').textContent='Revisa la fecha y el horario; esa opción ya no está disponible.';
+    renderCalendar();renderTimes();return false;
+  }
+  const emailInput=$('#email');
+  emailInput.value=emailInput.value.trim();
+  emailInput.setCustomValidity(emailInput.value && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(emailInput.value)?'Escribe un correo completo, por ejemplo nombre@correo.com.':'');
+  return emailInput.reportValidity();
+}
+$('#email').addEventListener('input',()=>$('#email').setCustomValidity(''));
+$('#confirm').onclick=()=>{
+  if(submitting||!validateSelection())return;
+  reviewedDraft={mode:simulated?'simulation':'email',plan:{id:state.plan.id,name:state.plan.name,detail:state.plan.detail},date:state.date,time:state.time,timeZone:CONFIG.timeZone,email:$('#email').value,createdAt:new Date().toISOString()};
+  $('#review-plan').textContent=`${state.plan.icon} ${state.plan.name}`;
+  $('#review-when').textContent=`${dateLabel(state.date)} · ${timeLabel(state.time)}`;
+  $('#review-email').textContent=reviewedDraft.email;
+  $('#review-error').textContent='';
+  $('#review-test').hidden=!simulated;
+  review.showModal();
+};
+$('#review-edit').onclick=()=>{if(!submitting){review.close();$('#email').focus();}};
+review.addEventListener('cancel',event=>{if(submitting)event.preventDefault();});
+$('#review-send').onclick=async()=>{
+  if(submitting||!reviewedDraft)return;
+  if(!available(reviewedDraft.date)||!validTime()){review.close();validateSelection();return;}
+  const draft=reviewedDraft;
   submitting=true;
-  const controls = [...document.querySelectorAll('[data-step="3"] button, [data-step="3"] select, [data-step="3"] input')];
-  const priorDisabled=controls.map(el=>el.disabled);
-  controls.forEach(el=>el.disabled=true);
-  $('#confirm').textContent=CONFIG.emailEndpoint?'Enviando…':'Confirmando…';
-  $('#error').textContent='';
-  try {
-    if(CONFIG.emailEndpoint){
+  $('#review-send').disabled=true;$('#review-edit').disabled=true;
+  $('#review-send').textContent=simulated?'Confirmando…':'Enviando…';
+  $('#review-error').textContent='';
+  try{
+    if(!simulated){
       const response=await fetch(CONFIG.emailEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(draft),signal:AbortSignal.timeout(20000)});
       const result=await response.json();
       if(!response.ok||result.accepted!==true)throw new Error(result.error||'No se pudo confirmar el envío.');
-      $('#delivery-note').textContent=draft.email?'El servicio aceptó el envío. Revisa tu correo y la carpeta de spam.':'¡Listo! Tu elección fue enviada.';
     }
+    window.invitationDraft=draft;
     $('#summary').replaceChildren();
     const label=document.createElement('small');label.textContent='NUESTRO PLAN';
-    const name=document.createElement('strong');name.textContent=`${state.plan.icon} ${state.plan.name}`;
-    const when=document.createElement('div');when.textContent=`${dateLabel(state.date)} · ${timeLabel(state.time)}`;
+    const name=document.createElement('strong');name.textContent=`${state.plan.icon} ${draft.plan.name}`;
+    const when=document.createElement('div');when.textContent=`${dateLabel(draft.date)} · ${timeLabel(draft.time)}`;
     $('#summary').append(label,name,when);
-    go(4);
-  }catch(error){$('#error').textContent=error.name==='TimeoutError'||error instanceof TypeError?'No pudimos confirmar el envío. Revisa tu correo antes de volver a intentarlo.':error.message;}
-  finally{controls.forEach((el,i)=>el.disabled=priorDisabled[i]);submitting=false;$('#confirm').textContent='Confirmar plan ↗';}
+    $('#delivery-note').textContent=simulated?`Prueba local: tu copia se enviaría a ${draft.email}. No se ha enviado ningún correo.`:`Solicitamos el envío de tu copia a ${draft.email}. Si no la encuentras, revisa spam.`;
+    review.close();go(4);
+  }catch(error){$('#review-error').textContent=error.name==='TimeoutError'||error instanceof TypeError?'No pudimos confirmar el envío. Revisa tu correo antes de volver a intentarlo.':error.message;}
+  finally{submitting=false;$('#review-send').disabled=false;$('#review-edit').disabled=false;$('#review-send').textContent='Sí, confirmar y enviar';}
 };

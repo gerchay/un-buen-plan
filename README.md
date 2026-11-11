@@ -43,3 +43,9 @@ Horarios actuales: 35 opciones cada media hora, de 06:00 a 23:00 inclusive. La d
 Se validan también en el servidor plan, fechas bloqueadas, horas pasadas y los intervalos. El correo de la invitada es opcional: vacío envía solo a HOST_EMAIL; informado envía a ella y copia oculta a HOST_EMAIL. INVITEE_EMAIL ya no se usa. Antes del despliegue real, configurar limitación de solicitudes en Cloudflare para evitar envíos repetidos. CORS no sustituye esa protección. No hay almacenamiento ni deduplicación persistente: ante errores de conexión revisar el correo antes de repetir. Brevo mantiene sus propios registros de envío.
 
 Pruebas del Worker con Node 24 (Brevo simulado, no envían correos): `node --test backend/worker.test.mjs`.
+
+## Revisión local: correo obligatorio y confirmación
+
+Para revisar sin enviar, configurar `CONFIG.simulateEmail` en `true`: el campo de correo es obligatorio, se muestra un diálogo para revisar plan/fecha/hora/correo, y confirmar NO realiza solicitudes al Worker. Permite volver a corregir. La pantalla final indica que es una simulación.
+
+Flujo aprobado: `simulateEmail` está en `false` para producción. Desplegar el Worker actualizado (también exige correo) y publicar frontend en main. Estos cambios todavía no se han desplegado desde esta tarea. Este comportamiento sustituye la opción anterior de enviar solo al anfitrión con correo vacío.

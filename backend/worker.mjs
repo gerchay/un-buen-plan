@@ -19,7 +19,7 @@ export default {
     if (new URL(request.url).pathname !== '/invite') return reply(404,{error:'Ruta no encontrada.'});
     if (request.method === 'OPTIONS') return new Response(null,{status:204,headers});
     if (request.method !== 'POST') return reply(405,{error:'Método no permitido.'});
-    // Tu copia siempre usa HOST_EMAIL; el correo de la invitada es opcional.
+    // Tu copia siempre usa HOST_EMAIL; el correo de la invitada es obligatorio.
     if (!['BREVO_API_KEY','SENDER_EMAIL','HOST_EMAIL'].every(key=>env[key])) return reply(503,{error:'El envío todavía no está configurado.'});
     if (!request.headers.get('Content-Type')?.startsWith('application/json')) return reply(415,{error:'Se requiere JSON.'});
     let data;
@@ -30,7 +30,7 @@ export default {
     } catch { return reply(400,{error:'Datos inválidos.'}); }
     if (!validate(data)) return reply(400,{error:'Revisa el plan, la fecha y el horario.'});
     const email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : '';
-    if ((data.email != null && typeof data.email !== 'string') || email.length > 254 || (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email))) return reply(400,{error:'Revisa el correo o deja el campo vacío.'});
+    if (!email || typeof data.email !== 'string' || email.length > 254 || (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email))) return reply(400,{error:'Escribe un correo válido para recibir el plan.'});
     const recipients = [...new Set([email,env.HOST_EMAIL.trim().toLowerCase()].filter(Boolean))];
     const { textContent, htmlContent } = renderEmail({plan:PLANS[data.plan.id],date:data.date,time:data.time,bowling:data.plan.id==='boliche'});
     try {
